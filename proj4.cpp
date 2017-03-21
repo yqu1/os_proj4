@@ -14,60 +14,105 @@
 using namespace std;
 
 
-tsqueue<queueItemSite*> pqueue;
-tsqueue<queueItemParse*> cqueue;
+tsqueue<queueItemSite*> fqueue;
+tsqueue<queueItemParse*> pqueue;
 queue<result*> resultsqueue;
+bool keepRunning = true;
 
+pthread_t* cons;
+pthread_t* pros;
+
+pthread_mutex_t write_lock;
+pthread_cond_t notWriting;
+
+parseConfig* P;
 
 void* producer(void* a) {
-        arg* args = (arg* )a;
-        for(int i = 0; i < args->LOOP; i++) {
-                pthread_mutex_lock(&pqueue.m_mutex);
-                while(pqueue.size() == 0) {
-                        pthread_cond_wait(&pqueue.notEmpty, &pqueue.m_mutex);
-                }
-                queueItemSite* itemSite  = (queueItemSite* ) pqueue.remove();
-                curlUtil c(itemSite->site);
-		c.get_curl();
-		string data = c.get_data();
-                queueItemParse* itemParse = new queueItemParse;
-                itemParse->site = itemSite->site;
-                itemParse->data = data;
-                delete itemSite;
-                cqueue.add(itemParse);
-                pthread_mutex_unlock(&pqueue.m_mutex);
-                pthread_cond_signal(&cqueue.notEmpty);
-        }
+    
+        while(keepRunning) {
+            pthread_mutex_lock(&fqueue.m_mutex);
+            while(fqueue.size() == 0) {
+		//	cout << "fart" << endl;
+                pthread_cond_wait(&fqueue.notEmpty, &fqueue.m_mutex);
+            }
+	   
+            queueItemSite* itemSite = fqueue.remove();
+            pthread_mutex_unlock(&fqueue.m_mutex);
+            
+	    string site = itemSite->site;
+            curlUtil c(site);
+            c.get_curl();
+            string data = c.get_data();
+	    cout << "fart" << endl;
+            delete itemSite;
+
+            pthread_mutex_lock(&pqueue.m_mutex);
+	    
+            queueItemParse* itemParse = new queueItemParse;
+            itemParse->data = data;
+            itemParse->site = site;
+            pqueue.add(itemParse);
+            pthread_mutex_unlock(&pqueue.m_mutex);
+            pthread_cond_signal(&pqueue.notEmpty);
+           
+	}
         pthread_exit(0);
 }
 
 void* consumer(void* a) {
-        arg* args = (arg* )a;
-        for(int i = 0; i < args->LOOP; i++) {
-                pthread_mutex_lock(&cqueue.m_mutex);
-                while(cqueue.size() == 0) {
-                        pthread_cond_wait(&cqueue.notEmpty, &cqueue.m_mutex);
-                }
+    arg* args = (arg* ) a;
+    while(keepRunning) {
+        pthread_mutex_lock(&pqueue.m_mutex);
+        while(pqueue.size() == 0) {
+            pthread_cond_wait(&pqueue.notEmpty, &pqueue.m_mutex);
+	    //cout << pqueue.size() << endl;
+        }
+        queueItemParse* itemParse = pqueue.remove();
+        pthread_mutex_unlock(&pqueue.m_mutex);
 
-                queueItemParse* item = cqueue.remove();
-                for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
-                        result* r = new result;
-                        r->site = item->site;
-                        r->num = count(*it, item->data);
+        pthread_mutex_lock(&write_lock);
+       	//while(writing) {
+        //    pthread_cond_wait(&notWriting, &write_lock);
+        //}	//writing = true;
+        for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
+                        cout << "fuck" << endl;
+			result* r = new result;
+                        r->site = itemParse->site;
+			cout << r->site << endl;
+                        r->num = count(*it, itemParse->data);
                         r->term = *it;
                         resultsqueue.push(r);
-                }
-                delete item;
-                pthread_mutex_unlock(&cqueue.m_mutex);
-                pthread_cond_signal(&pqueue.notEmpty);
         }
-        pthread_exit(0);
+        delete itemParse;
+        pthread_mutex_unlock(&write_lock);
+	//writing = false;
+        //pthread_cond_signal(&notWriting);
+
+    }
+    pthread_exit(0);
 }
 
 
-
 void my_handler(int s) {
-	cout << "caught signal " << s << endl;
+   cout << "caught signal " << s << endl;
+   exit(0);
+    keepRunning = false;
+    for(int i = 0; i < P->NF; i++) {
+                pthread_join(pros[i], NULL);
+    }
+    for(int j = 0; j < P->NP; j++) {
+                pthread_join(cons[j], NULL);
+    }
+    delete[] cons;
+    delete[] pros;
+    pthread_mutex_destroy(&write_lock);
+    pthread_cond_destroy(&notWriting);
+    while(!resultsqueue.empty()) {
+                result* r = resultsqueue.front();
+                resultsqueue.pop();
+                cout << "site: " << r->site << " term: " << r->term << " num: " << r->num << endl;
+                delete r;
+    }   
 	exit(1);
 }
 
@@ -79,9 +124,10 @@ void handle_alarm(int sig) {
 
 
 int main(int argc, char* argv[]) {
-	parseConfig P(argc, argv);
+	P = new parseConfig(argc, argv);
+	
 	signal(SIGALRM, handle_alarm);
-	alarm(P.PF);
+	alarm(P->PF);
 	struct sigaction sigIntHandler;
 
    	sigIntHandler.sa_handler = my_handler;
@@ -89,45 +135,42 @@ int main(int argc, char* argv[]) {
    	sigIntHandler.sa_flags = 0;
 	
    	sigaction(SIGINT, &sigIntHandler, NULL);
+    cons = new pthread_t[P->NP];
+    pros = new pthread_t[P->NF];
+                        /*cout << args->LOOP << endl;*/
+
+    vector<string> searches = get_search_terms(P->SF);
+    vector<string> links = get_fetch_links(P->SITEF);
+
+    arg* args = new arg;
+    args->searches = searches;
+//	cout << "fuck" << endl;
+    for(int i = 0; i < P->NF; i++) {
+    	pthread_create(&pros[i], NULL, producer, NULL);
+	//cout << "lu" << endl;
+    }
+    for(int j = 0; j < P->NP; j++) {                                                                                               
+        pthread_create(&cons[j], NULL, consumer, (void *)args);
+    }
+
 	
+	delete args;
+                                                                 
 	while(1) {
 		if(flag) {
-			vector<string> searches = get_search_terms(P.SF);
-        		vector<string> links = get_fetch_links(P.SITEF);
         		for(vector<string>::iterator it = links.begin(); it != links.end(); ++it) {
         			queueItemSite* item = new queueItemSite;
         			item->site = *it;
-        			pqueue.add(item);
+        			fqueue.add(item);
         		}
-			arg* args = new arg;
-			args->searches = searches;
-			args->LOOP = pqueue.size();					 									    pthread_t pros[P.NF];
-			pthread_t cons[P.NP];
-			//cout << args->LOOP << endl;
-			for(int i = 0; i < P.NF; i++) {
-				pthread_create(&pros[i], NULL, producer, (void *)args);
-			}
-			for(int j = 0; j < P.NP; j++) {
-				pthread_create(&cons[j], NULL, consumer, (void *)args);	
-			}
-			//pthread_cond_signal(&pqueue.notEmpty);
-			for(int i = 0; i < P.NF; i++) {
-				pthread_join(pros[i], NULL);
-			}
-			for(int j = 0; j < P.NP; j++) {
-				pthread_join(cons[j], NULL);
-			}
-			delete args;
-			//cout << "size: " << resultsqueue.size() << endl;
-			while(!resultsqueue.empty()) {
-				result* r = resultsqueue.front();
-				resultsqueue.pop();
-				cout << "site: " << r->site << "term: " << r->term << "num: " << r->num << endl;
-				delete r;
-			}	
+							
+				pthread_cond_broadcast(&fqueue.notEmpty);				
+			/*pthread_cond_signal(&pqueue.notEmpty);*/
+			/*cout << "size: " << resultsqueue.size() << endl;*/
 			flag = false;
-			alarm(P.PF);
+			alarm(P->PF);
 		}
 	}
 	return 0;
 }
+
