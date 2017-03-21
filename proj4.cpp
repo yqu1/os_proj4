@@ -35,14 +35,9 @@ void* producer(void* a) {
 
                 pthread_cond_wait(&fqueue.notEmpty, &fqueue.m_mutex);
                 if(!keepRunning){
-               
                         pthread_exit(0);
                 }
             }
-       /*         if(!keepRunning){
-                        cout << "derp" << endl;
-                        pthread_exit(0);
-                } */
             queueItemSite* itemSite = fqueue.remove();
             pthread_mutex_unlock(&fqueue.m_mutex);
 
@@ -76,10 +71,7 @@ void* consumer(void* a) {
             }
 
         }
- /*           if(!keepRunning){
-  //              cout << "derp" << endl;
-                pthread_exit(0);
-            } */
+ 
         queueItemParse* itemParse = pqueue.remove();
         pthread_mutex_unlock(&pqueue.m_mutex);
 
@@ -91,7 +83,7 @@ void* consumer(void* a) {
 
                         result* r = new result;
                         r->site = itemParse->site;
-
+			r->time = currentDateTime();
                         r->num = count(*it, itemParse->data);
                         r->term = *it;
                         resultsqueue.push(r);
@@ -106,7 +98,7 @@ void* consumer(void* a) {
 
 
 void my_handler(int s) {
-   cout << "caught signal " << s << endl;
+    cout << "caught signal " << s << endl;
     keepRunning = false;
     while(P->NF > 0){
         pthread_cond_broadcast(&fqueue.notEmpty);
@@ -131,7 +123,7 @@ void my_handler(int s) {
     while(!resultsqueue.empty()) {
                 result* r = resultsqueue.front();
                 resultsqueue.pop();
-                cout << "site: " << r->site << " term: " << r->term << " num: " << r->num << endl;
+                cout << "time: " << r->time << " site: " << r->site << " term: " << r->term << " num: " << r->num << endl;
                 delete r;
     }
         exit(1);
@@ -161,22 +153,22 @@ int main(int argc, char* argv[]) {
         sigIntHandler.sa_flags = 0;
 
         sigaction(SIGINT, &sigIntHandler, NULL);
-    cons = new pthread_t[P->NP];
-    pros = new pthread_t[P->NF];
+    	cons = new pthread_t[P->NP];
+    	pros = new pthread_t[P->NF];
 
-    vector<string> searches = get_search_terms(P->SF);
-    vector<string> links = get_fetch_links(P->SITEF);
+    	vector<string> searches = get_search_terms(P->SF);
+    	vector<string> links = get_fetch_links(P->SITEF);
 
-    args = new arg;
-    args->searches = searches;
+    	args = new arg;
+    	args->searches = searches;
 
-    for(int i = 0; i < P->NF; i++) {
-        pthread_create(&pros[i], NULL, producer, NULL);
+    	for(int i = 0; i < P->NF; i++) {
+        	pthread_create(&pros[i], NULL, producer, NULL);
 
-    }
-    for(int j = 0; j < P->NP; j++) {                                              
-        pthread_create(&cons[j], NULL, consumer, (void *)args);
-    }
+    	}
+    	for(int j = 0; j < P->NP; j++) {                                              
+        	pthread_create(&cons[j], NULL, consumer, (void *)args);
+    	}
 
         pthread_sigmask(SIG_UNBLOCK, &signal_mask, NULL);
 

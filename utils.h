@@ -10,13 +10,15 @@
 #include <iostream>
 #include <vector>
 #include <sstream>
-
+#include <time.h>
 using namespace std;
+
 
 typedef struct {
         string site;
         int num;
         string term;
+	string time;
 } result;
 
 typedef struct {
@@ -30,6 +32,19 @@ void trim(string& str);
 vector<string> get_search_terms(string file);
 vector<string> get_fetch_links(string file);
 int count(string sub, string str);
+const string currentDateTime();
+
+const string currentDateTime() {
+    time_t     now = time(0);
+    struct tm  tstruct;
+    char       buf[80];
+    tstruct = *localtime(&now);
+    // Visit http://en.cppreference.com/w/cpp/chrono/c/strftime
+         // for more information about date/time format
+    strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
+    
+    return buf;
+}
 
 
 vector<string> split(string str, char delimiter) {
