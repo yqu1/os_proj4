@@ -23,7 +23,6 @@ pthread_t* cons;
 pthread_t* pros;
 
 pthread_mutex_t write_lock;
-pthread_cond_t notWriting;
 
 parseConfig* P;
 arg* args;
@@ -119,7 +118,6 @@ void my_handler(int s) {
     delete[] pros;
     delete args;
     pthread_mutex_destroy(&write_lock);
-    pthread_cond_destroy(&notWriting);
     while(!resultsqueue.empty()) {
                 result* r = resultsqueue.front();
                 resultsqueue.pop();
