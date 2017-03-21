@@ -26,7 +26,7 @@ pthread_mutex_t write_lock;
 pthread_cond_t notWriting;
 
 parseConfig* P;
-
+arg* args;
 void* producer(void* a) {
     
         while(keepRunning) {
@@ -74,11 +74,14 @@ void* consumer(void* a) {
        	//while(writing) {
         //    pthread_cond_wait(&notWriting, &write_lock);
         //}	//writing = true;
+        //	
+
+	cout << args->searches.size() << endl;
         for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
-                        cout << "fuck" << endl;
+                        
 			result* r = new result;
                         r->site = itemParse->site;
-			cout << r->site << endl;
+			
                         r->num = count(*it, itemParse->data);
                         r->term = *it;
                         resultsqueue.push(r);
@@ -105,6 +108,7 @@ void my_handler(int s) {
     }
     delete[] cons;
     delete[] pros;
+    delete args;
     pthread_mutex_destroy(&write_lock);
     pthread_cond_destroy(&notWriting);
     while(!resultsqueue.empty()) {
@@ -137,12 +141,12 @@ int main(int argc, char* argv[]) {
    	sigaction(SIGINT, &sigIntHandler, NULL);
     cons = new pthread_t[P->NP];
     pros = new pthread_t[P->NF];
-                        /*cout << args->LOOP << endl;*/
-
+                        /*cout << args->LOOP << endl;*/ 
+	//cout << P->SF << endl;
     vector<string> searches = get_search_terms(P->SF);
     vector<string> links = get_fetch_links(P->SITEF);
-
-    arg* args = new arg;
+	//cout << searches.size() << endl;
+    args = new arg;
     args->searches = searches;
 //	cout << "fuck" << endl;
     for(int i = 0; i < P->NF; i++) {
@@ -154,7 +158,6 @@ int main(int argc, char* argv[]) {
     }
 
 	
-	delete args;
                                                                  
 	while(1) {
 		if(flag) {

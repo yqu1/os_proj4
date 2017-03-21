@@ -1,4 +1,4 @@
-NUM_FETCH=1
+NUM_FETCH=2
 PERIOD_FETCH=5
 SEARCH_FILE=ExampleSearch.txt
 SITE_FILE=ExampleSites.txt
