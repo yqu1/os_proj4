@@ -1,4 +1,5 @@
 #include "tsqueue.h"
+#include "utils.h"
 #include <fstream>
 #include <queue>
 #include <algorithm>
@@ -6,201 +7,64 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <iostream>
+#include "curlUtil.h"
 #include <vector>
 #include <sstream>
-#include <curl/curl.h>
+
 using namespace std;
 
-typedef struct {
-        string site;
-        int num;
-        string term;
-} result;
 
-typedef struct {
-        vector<string> searches;
-        int LOOP;
-} arg;
-
-string data;
 tsqueue<queueItemSite*> pqueue;
 tsqueue<queueItemParse*> cqueue;
 queue<result*> resultsqueue;
 
 
-
-void* producer(void* a);
-void* consumer(void* a);
-size_t writeCallback(char* buf, size_t size, size_t nmemb, void* up);
-void get_curl(string site);
-vector<string> split(string str, char delimiter);
-void trim(string& str);
-vector<string> get_search_terms(string file);
-vector<string> get_fetch_links(string file);
-int count(string sub, string str);
-
 void* producer(void* a) {
-	arg* args = (arg* )a;
-	for(int i = 0; i < args->LOOP; i++) {
-		pthread_mutex_lock(&pqueue.m_mutex);
-		while(pqueue.size() == 0) {
-			pthread_cond_wait(&pqueue.notEmpty, &pqueue.m_mutex);
-		}
-		queueItemSite* itemSite  = (queueItemSite* ) pqueue.remove();
-		get_curl(itemSite->site);
-		queueItemParse* itemParse = new queueItemParse;
-		itemParse->site = itemSite->site;
-		itemParse->data = data;
-		delete itemSite;
-		cqueue.add(itemParse);
-		pthread_mutex_unlock(&pqueue.m_mutex);
-		pthread_cond_signal(&cqueue.notEmpty);
-	}
-	pthread_exit(0);
+        arg* args = (arg* )a;
+        for(int i = 0; i < args->LOOP; i++) {
+                pthread_mutex_lock(&pqueue.m_mutex);
+                while(pqueue.size() == 0) {
+                        pthread_cond_wait(&pqueue.notEmpty, &pqueue.m_mutex);
+                }
+                queueItemSite* itemSite  = (queueItemSite* ) pqueue.remove();
+                curlUtil c(itemSite->site);
+		c.get_curl();
+		string data = c.get_data();
+                queueItemParse* itemParse = new queueItemParse;
+                itemParse->site = itemSite->site;
+                itemParse->data = data;
+                delete itemSite;
+                cqueue.add(itemParse);
+                pthread_mutex_unlock(&pqueue.m_mutex);
+                pthread_cond_signal(&cqueue.notEmpty);
+        }
+        pthread_exit(0);
 }
 
 void* consumer(void* a) {
-	arg* args = (arg* )a;
-	for(int i = 0; i < args->LOOP; i++) {
-		pthread_mutex_lock(&cqueue.m_mutex);
-		while(cqueue.size() == 0) {
-			pthread_cond_wait(&cqueue.notEmpty, &cqueue.m_mutex);
-		}
-
-		queueItemParse* item = cqueue.remove();
-		for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
-			result* r = new result;
-			r->site = item->site;
-			r->num = count(*it, item->data);
-			r->term = *it;
-			resultsqueue.push(r);			
-		}
-		delete item;
-		pthread_mutex_unlock(&cqueue.m_mutex);
-		pthread_cond_signal(&pqueue.notEmpty);
-	}
-	pthread_exit(0);
-}
-
-size_t writeCallback(char* buf, size_t size, size_t nmemb, void* up) {
-    data.clear();
-    for (size_t c = 0; c<size*nmemb; c++)
-    {
-        data.push_back(buf[c]);
-    }
-    return size*nmemb;
-}
-
-void get_curl(string site) {
-	CURL* curl;
-        curl_global_init(CURL_GLOBAL_ALL);
-        curl = curl_easy_init();
-        curl_easy_setopt(curl, CURLOPT_URL, site.c_str());
-        curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, &writeCallback);
-       	//curl_easy_setopt(curl, CURLOPT_VERBOSE, 1L);
-        curl_easy_perform(curl);
-        curl_easy_cleanup(curl);
-        curl_global_cleanup();
-}
-
-vector<string> split(string str, char delimiter) {
-  vector<string> internal;
-  stringstream ss(str); // Turn the string into a stream.
-  string tok;
-  
-  while(getline(ss, tok, delimiter)) {
-    internal.push_back(tok);
-  }
-  
-  return internal;
-}
-
-void trim(string& str) {
-	str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
-}
-
-class parseConfig {
-
-	public:
-		int PF, NF, NP;
-		string SF, SITEF;
-		parseConfig(int argc, char* argv[]);
-};
-
-parseConfig::parseConfig(int argc, char* argv[]) {
-	PF = 180;
-	NF = 1;
-	NP = 1;
-	SF = "Search.txt";
-	SITEF = "Sites.txt";
-	if(argc != 2) {
-		cout << "Please enter name of configuration file" << endl;
-		exit(0);
-	}
-	else {
-		fstream file(argv[1]);
-		if(file.is_open()) {
-			string line;
-			while(getline(file, line) && !line.empty()) {
-				trim(line);				
-				vector<string> parsed = split(line, '=');
-				string param = parsed[0];
-				string val = parsed[1];
-				if(param.compare("PERIOD_FETCH") == 0) PF = stoi(val);
-				else if(param.compare("NUM_FETCH") == 0) NF = stof(val);
-				else if(param.compare("NUM_PARSE") == 0) NP = stof(val);
-				else if(param.compare("SEARCH_FILE") == 0) SF = val;
-				else if(param.compare("SITE_FILE") == 0) SITEF = val;
-				else {
-					cout << "Unknown Parameter " << param << endl;
-				}
-			}
-			file.close();
-		}
-		else {
-			cout << "Cannot open " << argv[1] << endl;
-			exit(1);
-		}
-	}
-}
-
-vector<string> get_search_terms(string file){
-	fstream SF(file);
-	if(SF.is_open()) {
-		string line;
-		vector<string > searches; 
-		while(getline(SF, line) && !line.empty()) {
-			trim(line);
-			searches.push_back(line);
-		}
-		SF.close();
-		return searches;
-	}
-	else {
-		cout << "Cannot find SEARCH_FILE " << file << endl;
-		exit(0);
-	}
-}
-
-vector<string> get_fetch_links(string file) {
-	fstream SITEF(file);
-	if(SITEF.is_open()) {
-                string line;
-                vector<string > links;
-                while(getline(SITEF, line) && !line.empty()) {
-			trim(line);
-			if(line.find("https") == string::npos) {
-                        	links.push_back(line);
-			}
+        arg* args = (arg* )a;
+        for(int i = 0; i < args->LOOP; i++) {
+                pthread_mutex_lock(&cqueue.m_mutex);
+                while(cqueue.size() == 0) {
+                        pthread_cond_wait(&cqueue.notEmpty, &cqueue.m_mutex);
                 }
-                SITEF.close();
-                return links;
+
+                queueItemParse* item = cqueue.remove();
+                for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
+                        result* r = new result;
+                        r->site = item->site;
+                        r->num = count(*it, item->data);
+                        r->term = *it;
+                        resultsqueue.push(r);
+                }
+                delete item;
+                pthread_mutex_unlock(&cqueue.m_mutex);
+                pthread_cond_signal(&pqueue.notEmpty);
         }
-        else {
-                cout << "Cannot find SITE_FILE " << file << endl;
-                exit(0);
-        }
+        pthread_exit(0);
 }
+
+
 
 void my_handler(int s) {
 	cout << "caught signal " << s << endl;
@@ -213,15 +77,6 @@ void handle_alarm(int sig) {
 	flag = true;
 }
 
-int count(string sub, string str) {
-	int count = 0;
-	size_t nPos = str.find(sub, 0);
-	while(nPos != string::npos) {
-		count++;
-		nPos = str.find(sub, nPos + 1);
-	}
-	return count;
-}
 
 int main(int argc, char* argv[]) {
 	parseConfig P(argc, argv);

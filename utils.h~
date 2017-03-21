@@ -1,0 +1,154 @@
+#ifndef UTILS_H
+#define UTILS_H
+
+#include <fstream>
+#include <queue>
+#include <algorithm>
+#include <signal.h>
+#include <unistd.h>
+#include <stdlib.h>
+#include <iostream>
+#include <vector>
+#include <sstream>
+
+using namespace std;
+
+typedef struct {
+        string site;
+        int num;
+        string term;
+} result;
+
+typedef struct {
+        vector<string> searches;
+        int LOOP;
+} arg;
+
+
+void* producer(void* a);
+void* consumer(void* a);
+vector<string> split(string str, char delimiter);
+void trim(string& str);
+vector<string> get_search_terms(string file);
+vector<string> get_fetch_links(string file);
+int count(string sub, string str);
+
+void* producer(void* a) {
+        arg* args = (arg* )a;
+        for(int i = 0; i < args->LOOP; i++) {
+                pthread_mutex_lock(&pqueue.m_mutex);
+                while(pqueue.size() == 0) {
+                        pthread_cond_wait(&pqueue.notEmpty, &pqueue.m_mutex);
+                }
+                queueItemSite* itemSite  = (queueItemSite* ) pqueue.remove();
+                get_curl(itemSite->site);
+                queueItemParse* itemParse = new queueItemParse;
+                itemParse->site = itemSite->site;
+                itemParse->data = data;
+                delete itemSite;
+                cqueue.add(itemParse);
+                pthread_mutex_unlock(&pqueue.m_mutex);
+                pthread_cond_signal(&cqueue.notEmpty);
+        }
+        pthread_exit(0);
+}
+
+void* consumer(void* a) {
+        arg* args = (arg* )a;
+        for(int i = 0; i < args->LOOP; i++) {
+                pthread_mutex_lock(&cqueue.m_mutex);
+                while(cqueue.size() == 0) {
+                        pthread_cond_wait(&cqueue.notEmpty, &cqueue.m_mutex);
+                }
+
+                queueItemParse* item = cqueue.remove();
+                for(vector<string>::iterator it = args->searches.begin(); it != args->searches.end(); ++it) {
+                        result* r = new result;
+                        r->site = item->site;
+                        r->num = count(*it, item->data);
+                        r->term = *it;
+                        resultsqueue.push(r);
+                }
+                delete item;
+                pthread_mutex_unlock(&cqueue.m_mutex);
+                pthread_cond_signal(&pqueue.notEmpty);
+        }
+        pthread_exit(0);
+}
+
+
+vector<string> split(string str, char delimiter) {
+  vector<string> internal;
+  stringstream ss(str); // Turn the string into a stream.
+  string tok;
+
+  while(getline(ss, tok, delimiter)) {
+    internal.push_back(tok);
+  }
+
+  return internal;
+}
+
+void trim(string& str) {
+        str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
+}
+
+class parseConfig {
+
+        public:
+                int PF, NF, NP;
+                string SF, SITEF;
+                parseConfig(int argc, char* argv[]);
+};
+
+vector<string> get_search_terms(string file){
+        fstream SF(file);
+        if(SF.is_open()) {
+                string line;
+                vector<string > searches;
+                while(getline(SF, line) && !line.empty()) {
+                        trim(line);
+                        searches.push_back(line);
+                }
+                SF.close();
+                return searches;
+        }
+        else {
+                cout << "Cannot find SEARCH_FILE " << file << endl;
+                exit(0);
+        }
+}
+
+vector<string> get_fetch_links(string file) {
+        fstream SITEF(file);
+        if(SITEF.is_open()) {
+                string line;
+                vector<string > links;
+                while(getline(SITEF, line) && !line.empty()) {
+                        trim(line);
+                        if(line.find("https") == string::npos) {
+                                links.push_back(line);
+                        }
+                }
+                SITEF.close();
+                return links;
+        }
+        else {
+                cout << "Cannot find SITE_FILE " << file << endl;
+                exit(0);
+        }
+}
+
+
+int count(string sub, string str) {
+        int count = 0;
+        size_t nPos = str.find(sub, 0);
+        while(nPos != string::npos) {
+                count++;
+                nPos = str.find(sub, nPos + 1);
+        }
+        return count;
+}
+
+
+#endif
