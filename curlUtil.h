@@ -55,7 +55,7 @@ class curlUtil {
 
   /* specify URL to get */
   		curl_easy_setopt(curl_handle, CURLOPT_URL, site.c_str());
-
+		curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
   /* send all data to this function  */
   		curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, WriteMemoryCallback);
 
