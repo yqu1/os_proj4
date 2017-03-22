@@ -3,9 +3,9 @@ CXXFLAGS = -std=c++0x -g -Wall -lcurl
 
 all: proj4
 
-proj4: proj4.cpp tsqueue.h curlUtil.h utils.h
-	${CXX} ${CXXFLAGS} -o $@ proj4.cpp tsqueue.h curlUtil.h utils.h
+proj4: proj4.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
+	${CXX} ${CXXFLAGS} -o $@ proj4.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
 
 clean:
 	rm -f *.out proj4
-	rm -r *.dSYM
+	rm *.csv *.html

@@ -1,7 +1,6 @@
 #include "tsqueue.h"
 #include "utils.h"
 #include <fstream>
-#include "writeHtml.h"
 #include <queue>
 #include <algorithm>
 #include <signal.h>
@@ -143,22 +142,12 @@ void my_handler(int s) {
     delete[] pros;
     delete args;
     pthread_mutex_destroy(&write_lock);
-/*   while(!resultsqueue.empty()) {
+    while(!resultsqueue.empty()) {
                 result* r = resultsqueue.front();
                 resultsqueue.pop();
                 cout << "time: " << r->time << " site: " << r->site << " term: " << r->term << " num: " << r->num << endl;
                 delete r;
-    } */
-	/*ofstream outputFile;
-        string filename = "num_fetch.txt";
- 	ostringstream ss;
-        ss << nfetch;
-        outputFile.open(filename);
-	cout << ss.str() << endl;
-	outputFile << "number of fetches occurred" << endl;
-	outputFile << nfetch << endl;
-	outputFile.close();*/
-	writeHtml(nfetch);
+    }
         exit(1);
 }
 

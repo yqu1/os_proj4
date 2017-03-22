@@ -1,7 +1,6 @@
 #include "tsqueue.h"
 #include "utils.h"
 #include <fstream>
-#include "writeHtml.h"
 #include <queue>
 #include <algorithm>
 #include <signal.h>
@@ -22,7 +21,7 @@ bool keepRunning = true;
 
 pthread_t* cons;
 pthread_t* pros;
-int nfetch = 0;
+
 pthread_mutex_t write_lock;
 
 parseConfig* P;
@@ -60,11 +59,6 @@ void* producer(void* a) {
         pthread_exit(0);
 }
 
-bool file_exists( string filename ){
-        ifstream f(filename.c_str());
-        return f.good();
-}
-
 void* consumer(void* a) {
     arg* args = (arg* ) a;
     while(keepRunning) {
@@ -94,32 +88,13 @@ void* consumer(void* a) {
                         resultsqueue.push(r);
         }
         delete itemParse;
-        //pthread_mutex_unlock(&write_lock);
-	
-		ofstream outputFile;
-		ostringstream ss;
-		ss << nfetch;
-		string filename = ss.str() + ".csv";
-	if(!file_exists(filename)){
-		outputFile.open(filename);
-		outputFile << "Time,Phrase,Site,Count" << endl;
-	}
-	else
-		outputFile.open(filename,ofstream::app);
+        pthread_mutex_unlock(&write_lock);
 
-    while(!resultsqueue.empty()) {
-                result* r = resultsqueue.front();
-                resultsqueue.pop();
-                outputFile << r->time << "," << r->term << "," <<  r->site << "," << r->num << endl;
-                delete r;
-    }
-    outputFile.close();
-    pthread_mutex_unlock(&write_lock);
 
     }
-
     pthread_exit(0);
 }
+
 
 void my_handler(int s) {
     cout << "caught signal " << s << endl;
@@ -134,31 +109,27 @@ void my_handler(int s) {
     }
 
     for(int i = 0; i < P->NF; i++) {
-                pthread_join(pros[i], NULL);
+		if(pthread_join(pros[i], NULL)) {
+                        printf("Error joining thread\n");
+                        exit(1);
+                }
     }
     for(int j = 0; j < P->NP; j++) {
-                pthread_join(cons[j], NULL);
+		if(pthread_join(cons[j], NULL)) {
+                        printf("Error joining thread\n");
+                        exit(1);
+                }
     }
     delete[] cons;
     delete[] pros;
     delete args;
     pthread_mutex_destroy(&write_lock);
-/*   while(!resultsqueue.empty()) {
+    while(!resultsqueue.empty()) {
                 result* r = resultsqueue.front();
                 resultsqueue.pop();
                 cout << "time: " << r->time << " site: " << r->site << " term: " << r->term << " num: " << r->num << endl;
                 delete r;
-    } */
-	/*ofstream outputFile;
-        string filename = "num_fetch.txt";
- 	ostringstream ss;
-        ss << nfetch;
-        outputFile.open(filename);
-	cout << ss.str() << endl;
-	outputFile << "number of fetches occurred" << endl;
-	outputFile << nfetch << endl;
-	outputFile.close();*/
-	writeHtml(nfetch);
+    }
         exit(1);
 }
 
@@ -166,7 +137,6 @@ volatile sig_atomic_t flag = false;
 
 void handle_alarm(int sig) {
         flag = true;
-	nfetch++;
 }
 
 static sigset_t signal_mask;
@@ -197,11 +167,17 @@ int main(int argc, char* argv[]) {
     	args->searches = searches;
 
     	for(int i = 0; i < P->NF; i++) {
-        	pthread_create(&pros[i], NULL, producer, NULL);
+		if(pthread_create(&pros[i], NULL, producer, NULL) != 0) {
+			printf("Error creating thread  \n");
+			return -1;			
+		}
 
     	}
     	for(int j = 0; j < P->NP; j++) {                                              
-        	pthread_create(&cons[j], NULL, consumer, (void *)args);
+        	if(pthread_create(&cons[j], NULL, consumer, (void *)args) != 0) {
+			printf("Error creating thread \n");
+			return -1;
+		}
     	}
 
         pthread_sigmask(SIG_UNBLOCK, &signal_mask, NULL);
