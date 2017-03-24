@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -std=c++0x -g -Wall -lcurl 
+CXXFLAGS = -std=c++0x -g -Wall -lcurl -lxml2
 
 all: proj4
 

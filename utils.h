@@ -13,7 +13,7 @@
 #include <time.h>
 using namespace std;
 
-
+//struct for an item in the resultsqueue
 typedef struct {
         string site;
         int num;
@@ -21,6 +21,7 @@ typedef struct {
 	string time;
 } result;
 
+//struct for arguments passed into the parse thread
 typedef struct {
         vector<string> searches;
         int LOOP;
@@ -34,6 +35,7 @@ vector<string> get_fetch_links(string file);
 int count(string sub, string str);
 const string currentDateTime();
 
+//function to get current date and time
 const string currentDateTime() {
     time_t     now = time(0);
     struct tm  tstruct;
@@ -45,6 +47,7 @@ const string currentDateTime() {
 }
 
 
+//function to split string
 vector<string> split(string str, char delimiter) {
   vector<string> internal;
   stringstream ss(str); // Turn the string into a stream.
@@ -57,10 +60,12 @@ vector<string> split(string str, char delimiter) {
   return internal;
 }
 
+//function to trim string
 void trim(string& str) {
         str.erase(std::remove(str.begin(), str.end(), '\n'), str.end());
 }
 
+//a class for parsing configuration
 class parseConfig {
 
         public:
@@ -104,6 +109,8 @@ parseConfig::parseConfig(int argc, char* argv[]) {
                 }
         }
 }
+
+//function for getting search terms
 vector<string> get_search_terms(string file){
         fstream SF(file);
         if(SF.is_open()) {
@@ -122,6 +129,7 @@ vector<string> get_search_terms(string file){
         }
 }
 
+//function to get fetch links
 vector<string> get_fetch_links(string file) {
         fstream SITEF(file);
         if(SITEF.is_open()) {
@@ -142,7 +150,7 @@ vector<string> get_fetch_links(string file) {
         }
 }
 
-
+//function to count occurrence of one string in another
 int count(string sub, string str) {
         int count = 0;
         size_t nPos = str.find(sub, 0);
