@@ -1,0 +1,19 @@
+Extra Credit 1 description:
+
+For EC1, our approach is we wrote an html template dynamically creating graphs based on the number of 
+fetches occurred in the run (nfetch), this template is hardcoded as a string in writeHtml function, which
+receives the number of fetches occurred in the run and generates the html using the 
+template. In the main program, we call writeHtml when the program is terminated by control c or SIGHUP. 
+The number of fetches occurred in the run tells the html how many csv files should it read in and thus
+how many graphs should it generate. Each graph is a bar chart demonstrating the occurrence of each search
+term in a specified site during a specified batch of fetch. And immediately follows the chart is a brief 
+table summary which adds in the time during which the fetch occurred. We utilized d3.js for visualization.
+
+The browser used for testing is Chrome.
+
+To see the html summary, first run the main program, after the program is terminated, a report called 
+summary.html is going to be generated. Start up a server using the command python -m SimpleHTTPServer,
+goto the browser and type in the link localhost:your-port-number. The page gives u link to all the 
+contents served in your current directory. Finally open up summary.html and enjoy the report!
+
+  

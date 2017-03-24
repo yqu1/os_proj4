@@ -24,7 +24,7 @@ bool keepRunning = true;
 pthread_t* cons;
 pthread_t* pros;
 //total number of fetches occurred
-int nfetch = 0;
+int nfetch = 1;
 
 //mutex lock for writing to file
 pthread_mutex_t write_lock;
@@ -145,10 +145,16 @@ void my_handler(int s) {
 
     //join all threads
     for(int i = 0; i < P->NF; i++) {
-                pthread_join(pros[i], NULL);
+                if(pthread_join(pros[i], NULL)) {
+			printf("Error joining threads! \n");
+			exit(1);
+		}	
     }
     for(int j = 0; j < P->NP; j++) {
-                pthread_join(cons[j], NULL);
+                if(pthread_join(cons[j], NULL)) {
+			printf("Error joining threads! \n");
+			exit(1);
+		}
     }
     //free pointers and destroy write_lock
     delete[] cons;
@@ -160,7 +166,7 @@ void my_handler(int s) {
     exit(1);
 }
 
-volatile sig_atomic_t flag = false;
+volatile sig_atomic_t flag = true;
 
 
 //alarm handler
@@ -205,11 +211,17 @@ int main(int argc, char* argv[]) {
 
         //create threads
         for(int i = 0; i < P->NF; i++) {
-                pthread_create(&pros[i], NULL, producer, NULL);
+                if(pthread_create(&pros[i], NULL, producer, NULL)) {
+			printf("Error creating thread!\n");
+			exit(1);
+		}
 
         }
         for(int j = 0; j < P->NP; j++) {                                          
-                pthread_create(&cons[j], NULL, consumer, (void *)args);
+                if(pthread_create(&cons[j], NULL, consumer, (void *)args)) {
+			printf("Error creating thread!\n");
+			exit(1);
+		}
         }
 
         pthread_sigmask(SIG_UNBLOCK, &signal_mask, NULL);
