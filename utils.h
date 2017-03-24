@@ -160,7 +160,9 @@ vector<string> get_search_terms(string file){
                 vector<string > searches;
                 while(getline(SF, line) && !line.empty()) {
                         trim(line);
-                        searches.push_back(line);
+			if(line.find(',') == string::npos && line.find('\r') == string::npos) { 
+                        	searches.push_back(line);
+			}
                 }
                 SF.close();
                 return searches;
