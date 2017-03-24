@@ -18,7 +18,7 @@ typedef struct {
         string site;
         int num;
         string term;
-	string time;
+        string time;
 } result;
 
 //struct for arguments passed into the parse thread
@@ -42,7 +42,7 @@ const string currentDateTime() {
     char       buf[80];
     tstruct = *localtime(&now);
     strftime(buf, sizeof(buf), "%Y-%m-%d.%X", &tstruct);
-    
+
     return buf;
 }
 
@@ -73,6 +73,14 @@ class parseConfig {
                 string SF, SITEF;
                 parseConfig(int argc, char* argv[]);
 };
+
+//function to check if file read in from config exists
+
+bool file_exists( string filename ){
+        ifstream f(filename.c_str());
+        return f.good();
+}
+
 parseConfig::parseConfig(int argc, char* argv[]) {
         PF = 180;
         NF = 1;
@@ -81,6 +89,10 @@ parseConfig::parseConfig(int argc, char* argv[]) {
         SITEF = "Sites.txt";
         if(argc != 2) {
                 cout << "Please enter name of configuration file" << endl;
+                exit(0);
+        }
+        else if(!file_exists(argv[1])){
+                cout << "Error No such config file exists!" << endl;
                 exit(0);
         }
         else {
@@ -92,11 +104,41 @@ parseConfig::parseConfig(int argc, char* argv[]) {
                                 vector<string> parsed = split(line, '=');
                                 string param = parsed[0];
                                 string val = parsed[1];
-                                if(param.compare("PERIOD_FETCH") == 0) PF = stoi(val);
-                                else if(param.compare("NUM_FETCH") == 0) NF = stof(val);
-                                else if(param.compare("NUM_PARSE") == 0) NP = stof(val);
-                                else if(param.compare("SEARCH_FILE") == 0) SF = val;
-                                else if(param.compare("SITE_FILE") == 0) SITEF = val;
+                                if(param.compare("PERIOD_FETCH") == 0){
+                                        PF = stoi(val);
+                                        if(PF <= 0){
+                                                printf("Error invalid period! Must be above 0\n");
+                                                exit(1);
+                                        }
+                                }
+                                else if(param.compare("NUM_FETCH") == 0){
+                                        NF = stof(val);
+                                        if(NF <= 0 || NF > 8){
+                                                printf("Error invalid # of fetch threads\n");
+                                                exit(1);
+                                        }
+                                }
+                                else if(param.compare("NUM_PARSE") == 0){
+                                        NP = stof(val);
+                                        if(NP <= 0 || NF > 8){
+                                                printf("Error invalid # of parse threads\n");
+                                                exit(1);
+                                        }
+                                }
+                                else if(param.compare("SEARCH_FILE") == 0){
+                                        SF = val;
+                                        if(!file_exists(SF)){
+                                                printf("No such SEARCH_FILE exists\n");
+                                                exit(1);
+                                        }
+                                }
+                                else if(param.compare("SITE_FILE") == 0){
+                                        SITEF = val;
+                                        if(!file_exists(SITEF)){
+                                                printf("No such SITE_FILE exists\n");
+                                                exit(1);
+                                        }
+                                }
                                 else {
                                         cout << "Unknown Parameter " << param << endl;
                                 }

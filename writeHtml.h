@@ -6,7 +6,7 @@
 #include <sstream>
 
 using namespace std;
-
+//a function that creates a HTML report based on number of fetches occurred
 void writeHtml(int numfetch) {
     ofstream file;
     ostringstream ss;

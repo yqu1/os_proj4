@@ -1,11 +1,11 @@
 CXX = g++
-CXXFLAGS = -std=c++0x -g -Wall -lcurl -lxml2
+CXXFLAGS = -std=c++0x -g -Wall -lcurl
 
-all: proj4
+all: site-tester
 
-proj4: proj4.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
-	${CXX} ${CXXFLAGS} -o $@ proj4.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
+site-tester: site-tester.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
+	${CXX} ${CXXFLAGS} -o $@ site-tester.cpp tsqueue.h curlUtil.h utils.h writeHtml.h
 
 clean:
-	rm -f *.out proj4
+	rm -f *.out site-tester
 	rm *.csv *.html
