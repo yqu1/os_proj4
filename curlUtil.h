@@ -65,7 +65,7 @@ class curlUtil {
   		/* some servers don't like requests that are made without a user-agent
  		*  *      field, so we provide one */
   		curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "libcurl-agent/1.0");
-
+		//curl_easy_setopt(curl_handle, CURLOPT_TIMEOUT, 30);
   		/* get it! */
   		res = curl_easy_perform(curl_handle);
 

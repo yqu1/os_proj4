@@ -7,7 +7,8 @@ Building/Running:
         do is run make. And to run you just need to run the program as you
         normally would but you have to provide a filename to your config file
         (EX: ./site-tester config.txt) but dont worry if you specify an invalid filename
-        our program will tell you!
+        our program will tell you! (Please run make clean to clear out any previously 
+	generated csv files before running)
 
 Structs:
         Result: used to store info after searching for keyword on site
@@ -46,6 +47,9 @@ push to a resultsqueue all of the relevant info to be written to file
 (timestamp,keyword,site,num_instances on site). We then write that info to a file
 and then unlock the mutex.
 
+When the user hits control c or send a SIGHUP to the program, the program terminates
+and cleans up the dynamically allocated memory, destroy mutex locks, join the threads
+and etc.
 
 Below is a pseudocode description of our logic flow:
 

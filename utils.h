@@ -181,7 +181,7 @@ vector<string> get_fetch_links(string file) {
                 vector<string > links;
                 while(getline(SITEF, line) && !line.empty()) {
                         trim(line);
-                        if(line.find("https") == string::npos) {
+                        if(line.find("https") == string::npos && line.find("http") != string::npos) {
                                 links.push_back(line);
                         }
                 }
