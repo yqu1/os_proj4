@@ -1,7 +1,6 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include <fstream>
 #include <queue>
 #include <algorithm>
 #include <signal.h>
@@ -11,6 +10,7 @@
 #include <vector>
 #include <sstream>
 #include <time.h>
+#include <fstream>
 using namespace std;
 
 //struct for an item in the resultsqueue
@@ -24,7 +24,6 @@ typedef struct {
 //struct for arguments passed into the parse thread
 typedef struct {
         vector<string> searches;
-        int LOOP;
 } arg;
 
 
@@ -119,8 +118,8 @@ parseConfig::parseConfig(int argc, char* argv[]) {
                                         }
                                 }
                                 else if(param.compare("NUM_PARSE") == 0){
-                                        NP = stof(val);
-                                        if(NP <= 0 || NF > 8){
+                                        NP = stof(val);					
+                                        if(NP <= 0 || NP > 8){
                                                 printf("Error invalid # of parse threads\n");
                                                 exit(1);
                                         }

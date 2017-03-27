@@ -10,6 +10,9 @@ Building/Running:
         our program will tell you! (Please run make clean to clear out any previously 
 	generated csv files before running)
 
+	note: Please specify more than 20 seconds for PERIOD_FETCH in config.txt when 
+	having timeout websites.  
+			
 Structs:
         Result: used to store info after searching for keyword on site
         arg: used to pass the vector of searches to be performed

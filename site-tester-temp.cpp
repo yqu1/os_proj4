@@ -18,7 +18,6 @@ using namespace std;
 tsqueue<queueItemSite*> fqueue;
 tsqueue<queueItemParse*> pqueue;
 queue<result*> resultsqueue;
-ofstream outputfile;
 bool keepRunning = true;
 
 //global variable for consumer and producer threads
@@ -106,12 +105,23 @@ void* consumer(void* a) {
         }
         delete itemParse;
         //write result to csv file
+        ofstream outputFile;
+        ostringstream ss;
+        ss << nfetch;
+        string filename = ss.str() + ".csv";
+        if(!file_exists(filename)){
+                outputFile.open(filename);
+                outputFile << "Time,Phrase,Site,Count" << endl;
+        }
+        else outputFile.open(filename,ofstream::app);
+
         while(!resultsqueue.empty()) {
                 result* r = resultsqueue.front();
                 resultsqueue.pop();
-                outputfile << r->time << "," << r->term << "," <<  r->site << "," << r->num << endl;
+                outputFile << r->time << "," << r->term << "," <<  r->site << "," << r->num << endl;
                 delete r;
         }
+        outputFile.close();
         pthread_mutex_unlock(&write_lock);
 
     }
@@ -150,7 +160,6 @@ void my_handler(int s) {
     delete[] cons;
     delete[] pros;
     delete args;
-    if(outputfile.is_open()) outputfile.close();
     pthread_mutex_destroy(&write_lock);
     //create HTML summary
     writeHtml(nfetch);
@@ -199,6 +208,7 @@ int main(int argc, char* argv[]) {
 
         args = new arg;
         args->searches = searches;
+
         //create threads
         for(int i = 0; i < P->NF; i++) {
                 if(pthread_create(&pros[i], NULL, producer, NULL)) {
@@ -220,14 +230,6 @@ int main(int argc, char* argv[]) {
         while(1) {
                 //flag is set to true on every alarm
                 if(flag) {
-			if(outputfile.is_open()) {
-				outputfile.close();
-			}
-			ostringstream ss;
-        		ss << nfetch;
-        		string filename = ss.str() + ".csv";
-			outputfile.open(filename);
-			outputfile << "Time,Phrase,Site,Count" << endl; 			
                         //push fetch jobs to the fetch queue
                         for(vector<string>::iterator it = links.begin(); it != links.end(); ++it) {
                                 queueItemSite* item = new queueItemSite;
